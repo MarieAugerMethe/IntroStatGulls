@@ -1,0 +1,173 @@
+---
+title: "Introduction to gull.pack"
+author: "Ronin Dupuy, Shabnam Shadloo, Marie Auger-Méthé"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to gull.pack}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r glaucous-winged gulls, echo=FALSE, out.width = '95%'}
+knitr::include_graphics(system.file("extdata", "gull_img.jpeg", package = "gull.pack"), error = FALSE)
+```
+
+The vignette provides examples of how to *estimate a population parameter* and create confidence intervals when our data is binary (0,1) using a dataset on Toxoplamosis prevalence in glaucous-winged gulls available in the `gull.pack` package.
+
+
+First, we'll download the packages necessary to manipulate data and calculate confidence intervals, as well as the package containing the data set itself.
+
+
+```{r setup}
+#| message: false
+#| warning: false
+#| results: hide
+library(infer)
+library(tidyverse)
+library(gull.pack)
+```
+
+# The Dataset
+
+Once we've loaded the package, we can gain access the data set `gulls_data` stored within it.
+
+
+```{r block_1}
+data("gulls_data")
+head(gulls_data)
+```
+
+
+The rows of this data set represent individual birds of the species glaucous-winged gulls (*Larus glaucescens*) that nest on X̱O¸X̱DEȽ (Mandarte island). The columns names are listed below along with a short explanation of what each represents. 
+
+
+* **BirdID:** Unique character combinations identifying the individual bird.
+* **CWS_band:** Unique number combinations associated with an individual bird's leg band. 
+* **Year:** The year the individual was initially captured.
+* **Month:** The month the individual was initially captured. 
+* **Day:** The day the individual was initially captured. 
+* **Toxoplasmosis:** Whether or not the individual has the disease Toxoplasmosis (1=Yes, 0=No).
+* **Bird_weight_kg:** The weight of the individual at the time of capture in kilograms. 
+* **Head_length_mm:** The length of the individual's head at the time of capture in millimeters.
+* **Bill_depth_mm:** The depth of the individual's bill at the time of capture in millimeters.
+* **Bill_length_mm:** The length of the individual's bill at the time of capture in millimeters.
+
+
+You can also use the help file with `?gulls_data`, to access information about the columns when working with the dataset. 
+
+# Analysis Goal
+
+Our goal is to know the prevalence of toxoplasmosis in these gulls because we are interested in understanding how common this disease is in animals that use urban landscapes. It's within these urban environments that domesticated cats, who play an important role in the spread of toxoplasmosis, are most abundant. An infected cat will shed the parasite in their feces, which can contaminate litter boxes, soil or water. If animals, including humans, come into contact with any of these contaminated substrate, they are at risk of contracting toxoplasmosis. Symptoms of toxoplasmosis can range from being flu-like to having more serious consequences like disruption of mental and motor skills, blindness and vision impairment or seizures. The disease can be passed from a mother during pregnancy and is more likely to seriously endanger an infant or fetus. Toxoplasmosis can affect the behaviour of wild animals, making them more vulnerable to threats such as car accidents. Hence, knowing how common the infection is in gulls gives us a sense of how common this disease is in the area. 
+
+
+For additional information:
+
+* https://www.mayoclinic.org/diseases-conditions/toxoplasmosis/symptoms-causes/syc-20356249#
+* https://www.merckvetmanual.com/generalized-conditions/toxoplasmosis/toxoplasmosis-in-animals 
+* https://www.cdc.gov/toxoplasmosis/causes/index.html 
+
+
+# Analysis
+
+The **Point Estimate** is the best single number estimate we have of an unknown population parameter from a sample. In this scenario, the population parameter we're interested in estimating is the prevalence of toxoplasmosis in birds on Mandarte island, which can be estimated with proportion of birds in the sample that have toxoplasmosis. The `Toxoplasmosis` column contains binary data, so taking the mean of the column in our sample provides us with proportion of birds with toxoplasmosis in our sample (i.e., our point estimate).
+
+```{r block_2}
+pe <- mean(gulls_data$Toxoplasmosis)
+pe
+```
+
+So our point estimate is `r round(pe,3)*100`%. Meaning our best estimate as to what proportion of gulls have toxoplasmosis in the population from which our sample was taken is `r round(pe,3)*100`%. 
+
+
+If we are interested in finding a range of values that's likely to contain the true proportion of gulls which have toxoplasmosis as opposed to the singular value of our point estimate, we can construct confidence intervals. We'll use a **Bootstrapping method** and a **Traditional Math method** to create two confidence intervals that provide a range of values for the prevalence of toxoplasmosis in the population. 
+
+
+### Bootstrapping method
+
+To find a $95$% confidence interval using the bootstrapping method, we'll generate 1000 bootstrap samples and calculate the mean of the `Toxoplasmosis` column for each sample using the `infer` package workflow. 
+
+
+```{r block_3}
+set.seed(2025)
+
+bootstrap_dist <- gulls_data |>
+  specify(response = Toxoplasmosis) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "mean")
+
+
+conf_int <- bootstrap_dist |>
+  get_ci(level = 0.95, type = "percentile")
+
+conf_int
+```
+
+
+Using this method, we find that we are 95% confident that the true proportion of gulls with toxoplasmosis in the population is in between `r round(conf_int$lower_ci,3)*100`% and `r round(conf_int$upper_ci,3)*100`%. What we mean by confident is: if we repeated the experiment 100 times (i.e., went back and sampled the same number of gulls from Mandarte 100 times) and calculated 95% confidence interval each time, we expect that 95 of these intervals will capture the true proportion of gulls with toxoplasmosis and that 5 of them won't.
+
+
+### Traditional method
+
+When using the traditional method to calculate confidence intervals, it is important that our data set satisfy the assumptions of the **Central Limit Theorem**. The data points need to be independent of one another and we need the sample size to be large enough for us to be able to rely on the Central Limit Theorem. For a confidence interval for binary data, our data set should satisfy: $n\hat{p} \geq 10$ and $n(1 - \hat{p}) \geq 10$. Where $n$ is the number of observations in the data set and $\hat{p}$ is the true proportion of birds which have the disease in the data set. We want each of the quantities to be greater than or equal to 10, which would indicate that the data set is large enough. 
+
+
+```{r block_4}
+n <- nrow(gulls_data) 
+
+phat <- mean(gulls_data$Toxoplasmosis)
+
+assumption_1 <- n * phat
+assumption_2 <- n * (1 - phat)
+
+assumption_1
+assumption_2
+```
+
+Thankfully our data set satisfies both of the assumptions.
+
+Now let's find a confidence interval using a Traditional Math Method.
+
+For a $95$% confidence interval the lower bound will be $\hat{p} - z^*_{97.5} \sqrt{\frac{\hat{p} \times (1 - \hat{p})}{n}}$ and the upper bound $\hat{p} + z^*_{97.5} \sqrt{\frac{\hat{p} \times (1 - \hat{p})}{n}}$, where 
+
+* $\hat{p}$: sample proportion (defined above)
+* $n$: number of observations being used
+* $z^*_{97.5}$: the $97.5^{th}$ percentile of the standard normal distribution. 
+
+We choose $z^*_{97.5}$ from the standard normal distribution, as opposed to a percentile of the t distribution, because we are finding a **proportion** confidence interval. Our confidence level is $C=95$ so we use the formula $100 - \frac{100 - C}{2} = 97.5$ to determine we want the $97.5^{th}$ percentile of that distribution. This can be calculated with `qnorm(0.975)`.
+
+```{r block_5}
+lower_bound <- phat - qnorm(0.975) * sqrt((phat*(1-phat))/n)
+
+upper_bound <- phat + qnorm(0.975) * sqrt((phat*(1-phat))/n)
+
+lower_bound
+upper_bound
+```
+
+We can see that our bounds are similar to the first method as we are now 95% confident that the true proportion of gulls with toxoplasmosis in the population is in between `r round(lower_bound,3)*100`% and `r round(upper_bound,3)*100`%.
+
+
+# Results in context
+
+To put the intervals we found into context, a study by Zaki et al. (2024) used samples of various bird species from around the world to calculate the pooled prevalence of toxoplasmosis, and understand how it varies across species and other factors like climate, continent and humidity. For gulls, the 95% confidence intervals they found was 12-49%. Of the 22 bird species which were analyzed, only two had an upper bound greater than 50%. As such, it appears like the prevalence of toxoplasmosis in glaucous-winged gulls on Mandarte island (`r round(pe,3)*100`%, 95% CI: `r round(lower_bound,3)*100`% - `r round(upper_bound,3)*100`%) may be higher than reported elsewhere.
+
+
+## Animal Care Permit Numbers
+
+The data were collected under the University of British Columbia Animal Care Permit no. A22-0045 and Environment and Climate Change Canada Scientific Permit to Capture and Band Migratory birds no. 10667 AB and 10667 Z.
+
+## Acknowledgments 
+
+We are immensely grateful to the Tsawout and Tseycum bands for allowing us to conduct research on Mandarte Island.  We also thank Amy Wilson, Peter Arcese, Richard Gerhold Jr. and Jade Baanstra for their help organizing the field and laboratory work, and in collecting the data. The research was supported by BC Knowledge Development Fund, Canada Foundation for Innovation’s John R. Evans Leaders Fund, Canada Research Chairs program, Natural Sciences and Engineering Research Council of Canada (NSERC) Discovery Grant and Undergraduate Student Research Awards, Indigenous Undergraduate Research Mentorship Program. 
+
+## References 
+
+Zaki, L., Olfatifar, M., Ghaffarifar, F., Eslahi, A. V., KarimiPourSaryazdi, A., Taghipour, A., Hamidianfar, N., Badri, M., & Jokelainen, P. (2024). Global prevalence of toxoplasma gondii in birds: A systematic review and meta-analysis. *Parasite Epidemiology and Control, 25,* e00350. https://doi.org/10.1016/j.parepi.2024.e00350
+

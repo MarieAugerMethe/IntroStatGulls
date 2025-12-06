@@ -1,0 +1,30 @@
+Package: IntroStatGulls
+Title: Introducing statistical concepts with gull data
+Version: 0.0.0.9000
+Authors@R: c(
+    person(
+      "Ronin", "Dupuy",
+      email = "ronindupuy@gmail.com",
+      role = c("aut", "cre")
+    ),
+    person(
+      "Shabnam", "Shadloo",
+      role = c("aut")
+    ),
+    person(
+      "Marie", "Auger-Méthé",
+      role = c("aut")
+    )
+  )
+Description: This package contains a dataset and vignette for the purpose of introductory statistical analysis.
+License: CC BY-NC 4.0. See file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 3.5)
+LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
